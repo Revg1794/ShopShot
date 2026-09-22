@@ -82,6 +82,41 @@ app/src/main/java/com/fullstackit/shopshot/
 
 ## Signing
 
-Release builds are currently signed with the debug key so `assembleRelease` produces something
-installable. Swap in a real keystore in `app/build.gradle.kts` before distributing this anywhere
-beyond your own phones.
+Release builds are signed with a real keystore held **outside this repo**:
+
+```
+F:\Keys\shopshot-release.jks          4096-bit RSA, valid to 2054
+F:\Keys\shopshot-release.jks.base64.txt   for the GitHub secret
+```
+
+`keystore.properties` in the project root points at it and holds the passwords. Both that file
+and any `.jks` are gitignored — **neither may ever be committed**.
+
+```properties
+storeFile=F:/Keys/shopshot-release.jks     # forward slashes: \ is an escape in .properties
+storePassword=...
+keyAlias=shopshot
+keyPassword=...
+```
+
+Gradle also accepts the same values as environment variables (`SHOPSHOT_STORE_FILE`,
+`SHOPSHOT_STORE_PASSWORD`, `SHOPSHOT_KEY_ALIAS`, `SHOPSHOT_KEY_PASSWORD`), which is how CI
+supplies them. With no keystore available the release build falls back to the debug key, so a
+fresh clone still builds — it just produces an APK that cannot update a properly signed install.
+
+**Back up the keystore and its password.** Losing them means the app can never be updated in
+place again: Android identifies an app by package name *plus* signing key, so a new key forces
+an uninstall/reinstall. Photos survive that (they live in `DCIM`), but app settings do not.
+
+### CI signing
+
+Signed release APKs are built only when these repository secrets exist:
+
+| Secret | Value |
+|---|---|
+| `KEYSTORE_BASE64` | contents of `shopshot-release.jks.base64.txt` |
+| `KEYSTORE_PASSWORD` | store password |
+| `KEY_ALIAS` | `shopshot` |
+| `KEY_PASSWORD` | key password |
+
+Without them the workflow still builds and uploads a debug APK.

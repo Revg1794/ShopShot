@@ -10,3 +10,7 @@ captures/
 *.apk
 *.keystore
 !debug.keystore
+
+# Signing secrets - never commit these
+keystore.properties
+*.jks

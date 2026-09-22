@@ -1,8 +1,26 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+// Release signing details come from keystore.properties (local, gitignored) or from
+// environment variables (CI). Neither the keystore nor its passwords belong in the repo.
+val keystoreProperties = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
+fun signingValue(key: String, env: String): String? =
+    keystoreProperties.getProperty(key) ?: System.getenv(env)
+
+val releaseStorePath: String? = signingValue("storeFile", "SHOPSHOT_STORE_FILE")
+
+// Falling back to the debug key keeps `assembleRelease` working for anyone who clones this
+// without the keystore - they just get an APK that cannot update a properly signed install.
+val hasReleaseKeystore: Boolean = releaseStorePath != null && file(releaseStorePath).exists()
 
 android {
     namespace = "com.fullstackit.shopshot"
@@ -16,13 +34,28 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = file(releaseStorePath!!)
+                storePassword = signingValue("storePassword", "SHOPSHOT_STORE_PASSWORD")
+                keyAlias = signingValue("keyAlias", "SHOPSHOT_KEY_ALIAS")
+                keyPassword = signingValue("keyPassword", "SHOPSHOT_KEY_PASSWORD")
+                enableV1Signing = true
+                enableV2Signing = true
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Signed with the debug key so a plain `assembleRelease` still produces an
-            // installable APK. Swap in a real keystore before any public distribution.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 
