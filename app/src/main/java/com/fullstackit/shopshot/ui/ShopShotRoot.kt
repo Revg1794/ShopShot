@@ -3,7 +3,6 @@ package com.fullstackit.shopshot.ui
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -77,22 +76,16 @@ fun ShopShotRoot(vm: AppViewModel = viewModel()) {
         ActivityResultContracts.RequestPermission()
     ) { granted -> hasCamera = granted }
 
-    // Reading photos other apps put in the shop folders is a bonus, never a blocker, so this
-    // is asked for once in the background and the app works fine if it is refused.
-    val readPermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { vm.refresh() }
-
+    // Only the camera is requested up front, because it is the one permission the app cannot
+    // work without.
+    //
+    // READ_MEDIA_IMAGES is deliberately NOT requested. The app can always read the photos it
+    // took itself (it owns those MediaStore rows), and "Add existing photos" goes through the
+    // system photo picker, which needs no permission at all. The permission would only reveal
+    // photos some *other* app dropped into the shop folders - not worth a dialog, and asking
+    // on every cold start was a nag that Android silently auto-denies after two refusals.
     LaunchedEffect(Unit) {
         if (!hasCamera) cameraPermission.launch(Manifest.permission.CAMERA)
-        val readPerm = if (Build.VERSION.SDK_INT >= 33) {
-            Manifest.permission.READ_MEDIA_IMAGES
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
-        if (context.checkSelfPermission(readPerm) != PackageManager.PERMISSION_GRANTED) {
-            readPermission.launch(readPerm)
-        }
     }
 
     Scaffold(

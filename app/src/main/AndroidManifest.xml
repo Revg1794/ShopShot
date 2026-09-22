@@ -3,8 +3,10 @@
 
     <uses-permission android:name="android.permission.CAMERA" />
 
-    <!-- Lets the app see shop photos that were put in its folders by other apps
-         (stock camera, file manager). Photos this app saved are always visible. -->
+    <!-- Declared but never requested at runtime. Photos this app took are always readable
+         without it, and importing uses the system photo picker, which needs no permission.
+         Grant it manually in app settings only to also see photos other apps dropped into
+         the shop folders. -->
     <uses-permission
         android:name="android.permission.READ_MEDIA_IMAGES"
         android:minSdkVersion="33" />

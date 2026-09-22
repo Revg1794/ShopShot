@@ -40,7 +40,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -135,7 +134,7 @@ fun FoldersScreen(
                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                 )
             },
-            onToggleAsk = vm::setAskEveryShot,
+            showAskToggle = false,
         )
     }
 }
@@ -161,17 +160,6 @@ private fun FolderCard(folder: ShopFolder, isCurrent: Boolean, onClick: () -> Un
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
-                )
-                // Keeps the name legible over a bright product photo.
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                0.6f to Color.Transparent,
-                                1f to Color.Black.copy(alpha = 0.55f),
-                            )
-                        )
                 )
             } else {
                 Icon(

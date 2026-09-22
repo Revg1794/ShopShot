@@ -55,7 +55,10 @@ fun FolderPickerSheet(
     onDismiss: () -> Unit,
     onPick: (String) -> Unit,
     onCreate: (String) -> Unit,
-    onToggleAsk: (Boolean) -> Unit,
+    onToggleAsk: (Boolean) -> Unit = {},
+    // "Ask before every shot" is a camera setting. It has no meaning when this sheet is
+    // picking a move or import destination, so those callers hide it.
+    showAskToggle: Boolean = true,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var query by remember { mutableStateOf("") }
@@ -132,25 +135,27 @@ fun FolderPickerSheet(
                 }
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable { onToggleAsk(!state.askEveryShot) }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("Ask before every shot", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        text = "Off means keep shooting into the same folder until you change it",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            if (showAskToggle) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable { onToggleAsk(!state.askEveryShot) }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Ask before every shot", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            text = "Off means keep shooting into the same folder until you change it",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = state.askEveryShot, onCheckedChange = onToggleAsk)
                 }
-                Switch(checked = state.askEveryShot, onCheckedChange = onToggleAsk)
             }
         }
     }
@@ -243,6 +248,10 @@ private fun FolderRow(folder: ShopFolder, selected: Boolean, onClick: () -> Unit
         }
     }
 }
+
+/** "1 photo" / "7 photos" - used in titles, where "photo(s)" reads like a form letter. */
+internal fun photoCount(count: Int): String =
+    if (count == 1) "1 photo" else String.format(Locale.getDefault(), "%d photos", count)
 
 internal fun countLabel(count: Int): String = when (count) {
     0 -> "Empty"

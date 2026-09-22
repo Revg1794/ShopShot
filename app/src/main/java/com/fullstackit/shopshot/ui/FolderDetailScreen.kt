@@ -98,7 +98,7 @@ fun FolderDetailScreen(
             }
         }
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        context.startActivity(Intent.createChooser(intent, "Share ${uris.size} photo(s)"))
+        context.startActivity(Intent.createChooser(intent, "Share ${photoCount(uris.size)}"))
     }
 
     Scaffold(
@@ -218,7 +218,7 @@ fun FolderDetailScreen(
     if (movePickerOpen) {
         FolderPickerSheet(
             state = state,
-            title = "Move ${selected.size} photo(s) to",
+            title = "Move ${photoCount(selected.size)} to",
             onDismiss = { movePickerOpen = false },
             onPick = { name ->
                 movePickerOpen = false
@@ -230,7 +230,7 @@ fun FolderDetailScreen(
                 vm.move(selectedShots.map { it.uri }, name)
                 selected = emptySet()
             },
-            onToggleAsk = vm::setAskEveryShot,
+            showAskToggle = false,
         )
     }
 
