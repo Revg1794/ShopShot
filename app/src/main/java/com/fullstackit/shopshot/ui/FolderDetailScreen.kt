@@ -22,9 +22,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Share
@@ -154,7 +154,7 @@ fun FolderDetailScreen(
             if (selecting) {
                 BottomAppBar(containerColor = MaterialTheme.colorScheme.surface) {
                     IconButton(onClick = { movePickerOpen = true }) {
-                        Icon(Icons.Filled.DriveFileMove, contentDescription = "Move")
+                        Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Move")
                     }
                     Text("Move", style = MaterialTheme.typography.labelLarge)
                     IconButton(onClick = { share(selectedShots.map { it.uri }) }) {
@@ -390,7 +390,7 @@ private fun PhotoViewer(
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
                 ViewerAction(Icons.Filled.Share, "Share", onShare)
-                ViewerAction(Icons.Filled.DriveFileMove, "Move", onMove)
+                ViewerAction(Icons.AutoMirrored.Filled.DriveFileMove, "Move", onMove)
                 ViewerAction(Icons.Filled.Close, "Remove", onTrash)
             }
         }

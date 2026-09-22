@@ -38,8 +38,15 @@ open it. Android will ask permission to install from this source the first time.
 To build locally instead, with JDK 17 and the Android SDK installed:
 
 ```
-gradle assembleDebug          # or ./gradlew assembleDebug once a wrapper jar exists
-gradle installDebug           # straight onto a USB-connected phone
+./gradlew assembleDebug       # app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleRelease     # smaller, and what you'd actually put on a phone
+./gradlew installDebug        # straight onto a USB-connected phone
+```
+
+`local.properties` (gitignored) must point at the SDK, using forward slashes:
+
+```
+sdk.dir=F:/Android/Sdk
 ```
 
 ## Requirements
