@@ -1,0 +1,11 @@
+# Keep line endings sane across Windows checkouts and the Linux CI runner.
+* text=auto eol=lf
+
+# gradlew is executed by /bin/sh on the CI runner; CRLF here breaks the shebang.
+gradlew text eol=lf
+*.bat text eol=crlf
+
+*.jar binary
+*.png binary
+*.jpg binary
+*.keystore binary
