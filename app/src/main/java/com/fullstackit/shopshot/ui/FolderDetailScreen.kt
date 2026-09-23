@@ -10,6 +10,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -199,7 +204,7 @@ fun FolderDetailScreen(
                             selected = emptySet()
                         }
                     ) {
-                        Icon(Icons.Filled.Close, contentDescription = "Remove")
+                        Icon(Icons.Filled.DeleteOutline, contentDescription = "Remove")
                     }
                     Text("Remove", style = MaterialTheme.typography.labelLarge)
                 }
@@ -441,7 +446,12 @@ private fun PhotoViewer(
 ) {
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false,
+            // The dialog draws edge to edge so the photo can fill the screen; the controls
+            // below then re-inset themselves by hand.
+            decorFitsSystemWindows = false,
+        ),
     ) {
         Box(
             modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.96f)),
@@ -450,11 +460,17 @@ private fun PhotoViewer(
                 model = shot.uri,
                 contentDescription = shot.displayName,
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize().padding(vertical = 72.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.systemBars)
+                    .padding(vertical = 72.dp),
             )
             IconButton(
                 onClick = onDismiss,
-                modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(12.dp),
             ) {
                 Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White)
             }
@@ -462,15 +478,25 @@ private fun PhotoViewer(
                 text = shot.displayName,
                 style = MaterialTheme.typography.labelMedium,
                 color = Color.White.copy(alpha = 0.7f),
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 22.dp),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(top = 22.dp),
             )
+            // Without this inset the row sat underneath the three-button navigation bar,
+            // which hides it entirely. Gesture navigation happens not to overlap, which is
+            // why this went unnoticed for so long.
             BottomAppBar(
                 containerColor = Color.Transparent,
-                modifier = Modifier.align(Alignment.BottomCenter),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.navigationBars),
             ) {
                 ViewerAction(Icons.Filled.Share, "Share", onShare)
                 ViewerAction(Icons.AutoMirrored.Filled.DriveFileMove, "Move", onMove)
-                ViewerAction(Icons.Filled.Close, "Remove", onTrash)
+                // A trash can, not an X: on Android an X reads as "close", and using it for
+                // a destructive action invites exactly the wrong tap.
+                ViewerAction(Icons.Filled.DeleteOutline, "Remove", onTrash)
             }
         }
     }
