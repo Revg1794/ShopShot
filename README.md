@@ -36,7 +36,7 @@ of items and want to be asked each time.
 
 ShopShot isn't on the Google Play Store, so you install it directly. It takes about a minute.
 
-1. Go to the [**Releases page**](../../releases/latest) and download **`ShopShot-1.0.apk`** onto
+1. Go to the [**Releases page**](../../releases/latest) and download the **`.apk`** file onto
    your phone.
 2. Open it. Your phone will say something like *"For your security, your phone isn't allowed to
    install unknown apps from this source."* Tap **Settings**, turn the switch on, then press

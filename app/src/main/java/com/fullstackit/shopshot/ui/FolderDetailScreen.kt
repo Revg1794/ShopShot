@@ -1,23 +1,26 @@
 package com.fullstackit.shopshot.ui
 
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -111,6 +114,29 @@ fun FolderDetailScreen(
         }
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         context.startActivity(Intent.createChooser(intent, "Share ${photoCount(uris.size)}"))
+    }
+
+    // The viewer takes over the whole screen rather than opening in a Dialog. A Compose Dialog
+    // does not reliably receive navigation bar insets, so every inset modifier inside one
+    // measured as zero and the action row stayed pinned under the navigation bar. In the
+    // activity's own window, which is already edge to edge, the insets are correct.
+    val viewingShot = viewing
+    if (viewingShot != null) {
+        PhotoViewerScreen(
+            shot = viewingShot,
+            onDismiss = { viewing = null },
+            onShare = { share(listOf(viewingShot.uri)) },
+            onMove = {
+                viewing = null
+                selected = setOf(viewingShot.id)
+                movePickerOpen = true
+            },
+            onTrash = {
+                viewing = null
+                vm.trash(listOf(viewingShot.uri))
+            },
+        )
+        return
     }
 
     Scaffold(
@@ -296,22 +322,6 @@ fun FolderDetailScreen(
         )
     }
 
-    viewing?.let { shot ->
-        PhotoViewer(
-            shot = shot,
-            onDismiss = { viewing = null },
-            onShare = { share(listOf(shot.uri)) },
-            onMove = {
-                viewing = null
-                selected = setOf(shot.id)
-                movePickerOpen = true
-            },
-            onTrash = {
-                viewing = null
-                vm.trash(listOf(shot.uri))
-            },
-        )
-    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -437,84 +447,83 @@ private fun RenameDialog(current: String, onDismiss: () -> Unit, onConfirm: (Str
 }
 
 @Composable
-private fun PhotoViewer(
+private fun PhotoViewerScreen(
     shot: Shot,
     onDismiss: () -> Unit,
     onShare: () -> Unit,
     onMove: () -> Unit,
     onTrash: () -> Unit,
 ) {
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(
-            usePlatformDefaultWidth = false,
-            // The dialog draws edge to edge so the photo can fill the screen; the controls
-            // below then re-inset themselves by hand.
-            decorFitsSystemWindows = false,
-        ),
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.96f)),
+    BackHandler(onBack = onDismiss)
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        AsyncImage(
+            model = shot.uri,
+            contentDescription = shot.displayName,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize().systemBarsPadding().padding(vertical = 64.dp),
+        )
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            AsyncImage(
-                model = shot.uri,
-                contentDescription = shot.displayName,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.systemBars)
-                    .padding(vertical = 72.dp),
-            )
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(12.dp),
-            ) {
+            IconButton(onClick = onDismiss) {
                 Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White)
             }
             Text(
                 text = shot.displayName,
                 style = MaterialTheme.typography.labelMedium,
-                color = Color.White.copy(alpha = 0.7f),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(top = 22.dp),
+                color = Color.White.copy(alpha = 0.75f),
+                maxLines = 1,
+                modifier = Modifier.padding(start = 4.dp),
             )
-            // Without this inset the row sat underneath the three-button navigation bar,
-            // which hides it entirely. Gesture navigation happens not to overlap, which is
-            // why this went unnoticed for so long.
-            BottomAppBar(
-                containerColor = Color.Transparent,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .windowInsetsPadding(WindowInsets.navigationBars),
-            ) {
-                ViewerAction(Icons.Filled.Share, "Share", onShare)
-                ViewerAction(Icons.AutoMirrored.Filled.DriveFileMove, "Move", onMove)
-                // A trash can, not an X: on Android an X reads as "close", and using it for
-                // a destructive action invites exactly the wrong tap.
-                ViewerAction(Icons.Filled.DeleteOutline, "Remove", onTrash)
-            }
+        }
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.6f))
+                .navigationBarsPadding()
+                .padding(vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ViewerAction(Modifier.weight(1f), Icons.Filled.Share, "Share", onShare)
+            ViewerAction(
+                Modifier.weight(1f),
+                Icons.AutoMirrored.Filled.DriveFileMove,
+                "Move",
+                onMove,
+            )
+            // A bin, not an X: on Android an X reads as "close", so using it for a
+            // destructive action invites exactly the wrong tap.
+            ViewerAction(Modifier.weight(1f), Icons.Filled.DeleteOutline, "Remove", onTrash)
         }
     }
 }
 
 @Composable
 private fun ViewerAction(
+    modifier: Modifier,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     onClick: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth(0.33f).clip(RoundedCornerShape(12.dp)),
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        IconButton(onClick = onClick) {
-            Icon(icon, contentDescription = label, tint = Color.White)
-        }
+        Icon(icon, contentDescription = label, tint = Color.White)
+        Spacer(Modifier.height(4.dp))
         Text(label, style = MaterialTheme.typography.labelMedium, color = Color.White)
     }
 }
