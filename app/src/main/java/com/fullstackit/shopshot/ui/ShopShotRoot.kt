@@ -76,14 +76,8 @@ fun ShopShotRoot(vm: AppViewModel = viewModel()) {
         ActivityResultContracts.RequestPermission()
     ) { granted -> hasCamera = granted }
 
-    // Only the camera is requested up front, because it is the one permission the app cannot
-    // work without.
-    //
-    // READ_MEDIA_IMAGES is deliberately NOT requested. The app can always read the photos it
-    // took itself (it owns those MediaStore rows), and "Add existing photos" goes through the
-    // system photo picker, which needs no permission at all. The permission would only reveal
-    // photos some *other* app dropped into the shop folders - not worth a dialog, and asking
-    // on every cold start was a nag that Android silently auto-denies after two refusals.
+    // The camera is the only permission this app ever requests; see AndroidManifest.xml for
+    // why no media-read permission is declared at all.
     LaunchedEffect(Unit) {
         if (!hasCamera) cameraPermission.launch(Manifest.permission.CAMERA)
     }

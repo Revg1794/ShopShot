@@ -49,7 +49,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Shrinking roughly halves the install. Verify on a real device after changing
+            // this: R8 removing something it should not keep fails at runtime, not at build.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = if (hasReleaseKeystore) {
                 signingConfigs.getByName("release")

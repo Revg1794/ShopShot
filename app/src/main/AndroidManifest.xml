@@ -1,18 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- The camera is the only permission this app asks for.
 
-    <!-- Declared but never requested at runtime. Photos this app took are always readable
-         without it, and importing uses the system photo picker, which needs no permission.
-         Grant it manually in app settings only to also see photos other apps dropped into
-         the shop folders. -->
-    <uses-permission
-        android:name="android.permission.READ_MEDIA_IMAGES"
-        android:minSdkVersion="33" />
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+         There is deliberately no READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE here. Photos this
+         app took are readable without any permission because it owns those MediaStore rows,
+         and "Add existing photos" goes through the system photo picker, which needs none
+         either. Declaring a sensitive media permission we never use would mean a Play policy
+         declaration and review for no functional gain. -->
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <uses-feature android:name="android.hardware.camera.any" android:required="true" />
 
