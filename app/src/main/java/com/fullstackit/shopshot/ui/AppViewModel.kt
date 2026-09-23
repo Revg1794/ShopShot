@@ -41,7 +41,13 @@ sealed interface UiEvent {
 /** What we are waiting on the system consent dialog for. */
 private sealed interface Pending {
     data class Move(val uris: List<Uri>, val target: String) : Pending
-    data object Trash : Pending
+
+    /**
+     * [forgetFolderAfter] is set when this trash is the first half of deleting a whole folder.
+     * The folder is only dropped once the user confirms the system dialog, so cancelling out
+     * leaves everything exactly as it was.
+     */
+    data class Trash(val forgetFolderAfter: String? = null) : Pending
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -189,7 +195,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             when (val result = repo.trash(uris)) {
                 is MediaResult.NeedsConsent -> {
-                    pending = Pending.Trash
+                    pending = Pending.Trash()
                     _events.send(UiEvent.Consent(result.intentSender))
                 }
                 is MediaResult.Done -> refresh()
@@ -227,11 +233,40 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Drops an empty folder from the picker. Folders with photos are left alone. */
-    fun forgetEmptyFolder(name: String) {
-        if (_state.value.shots.any { it.folder == name }) return
+    /**
+     * Deletes a folder. An empty one just disappears; one with photos sends them to the system
+     * trash first, which needs a single confirmation and stays recoverable from the Gallery's
+     * Recently Deleted for 30 days.
+     */
+    fun deleteFolder(name: String) {
+        viewModelScope.launch {
+            val uris = _state.value.shots.filter { it.folder == name }.map { it.uri }
+            if (uris.isEmpty()) {
+                dropFolder(name)
+                _events.send(UiEvent.Toast("Deleted \"$name\""))
+                return@launch
+            }
+            when (val result = repo.trash(uris)) {
+                is MediaResult.NeedsConsent -> {
+                    pending = Pending.Trash(forgetFolderAfter = name)
+                    _events.send(UiEvent.Consent(result.intentSender))
+                }
+                is MediaResult.Done -> {
+                    dropFolder(name)
+                    _events.send(UiEvent.Toast("Deleted \"$name\""))
+                }
+            }
+        }
+    }
+
+    /** Removes a folder name from the picker, moving the camera off it if it was selected. */
+    private fun dropFolder(name: String) {
         prefs.forgetFolder(name)
-        if (_state.value.currentFolder == name) selectFolder(Prefs.DEFAULT_FOLDER)
-        refresh()
+        if (prefs.currentFolder == name) {
+            selectFolder(Prefs.DEFAULT_FOLDER)
+        } else {
+            refresh()
+        }
     }
 
     /** Result of the system consent dialog the UI launched for us. */
@@ -244,8 +279,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         when (p) {
-            // The system performed the trash itself once consent was given.
-            Pending.Trash, null -> refresh()
+            // The system performed the trash itself once consent was given; all that is left
+            // is dropping the folder, if this trash was part of deleting one.
+            is Pending.Trash -> {
+                val folder = p.forgetFolderAfter
+                if (folder != null) {
+                    dropFolder(folder)
+                    viewModelScope.launch { _events.send(UiEvent.Toast("Deleted \"$folder\"")) }
+                } else {
+                    refresh()
+                }
+            }
+            null -> refresh()
             is Pending.Move -> viewModelScope.launch { runMove(p.uris, p.target) }
         }
     }

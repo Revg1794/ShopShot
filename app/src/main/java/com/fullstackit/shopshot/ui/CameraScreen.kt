@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.FlashAuto
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -55,6 +56,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -68,11 +70,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import com.fullstackit.shopshot.data.Shot
@@ -113,9 +118,33 @@ fun CameraScreen(
     var focusPoint by remember { mutableStateOf<Offset?>(null) }
     var shutterFlash by remember { mutableStateOf(false) }
 
-    // Bind (or rebind, when the lens flips) the camera use cases.
-    LaunchedEffect(state.useFrontCamera) {
-        val cameraProvider = provider ?: awaitCameraProvider(context).also { provider = it }
+    var bindError by remember { mutableStateOf<String?>(null) }
+    var rebindTick by remember { mutableIntStateOf(0) }
+
+    // Rebinding has to happen on every resume, not once per composition. Binding once meant
+    // that leaving for the folder list and coming back could land on a dead camera: the
+    // outgoing screen's teardown runs after the incoming one has already bound, so the fresh
+    // binding was being torn down with nothing left to restore it.
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) rebindTick++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // No unbind on dispose: bindToLifecycle already releases the camera when the lifecycle
+    // stops, and unbindAll() is process-wide, so doing it by hand fought CameraX and left the
+    // preview black.
+    LaunchedEffect(state.useFrontCamera, rebindTick) {
+        val cameraProvider = provider ?: run {
+            val loaded = runCatching { awaitCameraProvider(context) }.getOrElse { e ->
+                bindError = "Could not start the camera: ${e.message}"
+                return@LaunchedEffect
+            }
+            provider = loaded
+            loaded
+        }
         val preview = Preview.Builder().build().apply {
             setSurfaceProvider(previewView.surfaceProvider)
         }
@@ -124,18 +153,19 @@ fun CameraScreen(
         } else {
             CameraSelector.DEFAULT_BACK_CAMERA
         }
-        runCatching {
+        try {
             cameraProvider.unbindAll()
             camera = cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview, imageCapture)
+            bindError = null
+        } catch (e: Exception) {
+            // Swallowing this was what turned a recoverable failure into a silent black screen.
+            camera = null
+            bindError = "Could not start the camera: ${e.message}"
         }
     }
 
     // Flash is a live property, so it does not need a rebind.
     LaunchedEffect(state.flashMode) { imageCapture.flashMode = state.flashMode }
-
-    DisposableEffect(Unit) {
-        onDispose { provider?.unbindAll() }
-    }
 
     LaunchedEffect(focusPoint) {
         if (focusPoint != null) {
@@ -152,6 +182,12 @@ fun CameraScreen(
 
     fun capture(target: String) {
         if (capturing) return
+        // Firing the shutter at an unbound camera is what silently produced no photo at all.
+        if (camera == null) {
+            vm.reportError(bindError ?: "Camera is not ready yet")
+            rebindTick++
+            return
+        }
         capturing = true
         shutterFlash = true
         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -208,6 +244,35 @@ fun CameraScreen(
         )
 
         focusPoint?.let { point -> FocusRing(point) }
+
+        // A black rectangle tells her nothing. If the camera could not start, say so and give
+        // her a way out that is not "force quit the app".
+        bindError?.let { message ->
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(32.dp),
+                ) {
+                    Text(
+                        text = "Camera unavailable",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.75f),
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(20.dp))
+                    Button(onClick = { rebindTick++ }) { Text("Try again") }
+                }
+            }
+        }
 
         // Brief white wash on capture so she gets feedback even with the shutter sound off.
         val flashAlpha by animateFloatAsState(

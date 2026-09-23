@@ -25,11 +25,16 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,6 +78,8 @@ fun FolderDetailScreen(
     var selected by remember { mutableStateOf(setOf<Long>()) }
     var movePickerOpen by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
+    var confirmingDelete by remember { mutableStateOf(false) }
     var viewing by remember { mutableStateOf<Shot?>(null) }
 
     val selecting = selected.isNotEmpty()
@@ -134,14 +141,39 @@ fun FolderDetailScreen(
                             Text("All")
                         }
                     } else {
-                        IconButton(onClick = { renaming = true }) {
-                            Icon(
-                                Icons.Filled.DriveFileRenameOutline,
-                                contentDescription = "Rename folder",
-                            )
-                        }
                         IconButton(onClick = { vm.selectFolder(folderName); onBack() }) {
                             Icon(Icons.Filled.PhotoCamera, contentDescription = "Shoot into this folder")
+                        }
+                        Box {
+                            IconButton(onClick = { menuOpen = true }) {
+                                Icon(Icons.Filled.MoreVert, contentDescription = "Folder options")
+                            }
+                            DropdownMenu(
+                                expanded = menuOpen,
+                                onDismissRequest = { menuOpen = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Rename folder") },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Filled.DriveFileRenameOutline,
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    onClick = { menuOpen = false; renaming = true },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Delete folder") },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Filled.DeleteOutline,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error,
+                                        )
+                                    },
+                                    onClick = { menuOpen = false; confirmingDelete = true },
+                                )
+                            }
                         }
                     }
                 },
@@ -234,6 +266,19 @@ fun FolderDetailScreen(
         )
     }
 
+    if (confirmingDelete) {
+        DeleteFolderDialog(
+            folderName = folderName,
+            photoCountInFolder = shots.size,
+            onDismiss = { confirmingDelete = false },
+            onConfirm = {
+                confirmingDelete = false
+                vm.deleteFolder(folderName)
+                onBack()
+            },
+        )
+    }
+
     if (renaming) {
         RenameDialog(
             current = folderName,
@@ -318,6 +363,40 @@ private fun PhotoCell(
             }
         }
     }
+}
+
+@Composable
+private fun DeleteFolderDialog(
+    folderName: String,
+    photoCountInFolder: Int,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val hasPhotos = photoCountInFolder > 0
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (hasPhotos) "Delete folder and its photos?" else "Delete folder?") },
+        text = {
+            Text(
+                if (hasPhotos) {
+                    "\"$folderName\" and the ${photoCount(photoCountInFolder)} in it will be " +
+                        "removed. The photos go to your phone's Recently Deleted, where you can " +
+                        "get them back for 30 days."
+                } else {
+                    "\"$folderName\" is empty, so nothing else is affected."
+                }
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) { Text("Delete") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable
