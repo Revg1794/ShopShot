@@ -26,6 +26,12 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # Left empty on purpose. The action's default is to install the long-obsolete
+          # "tools" package, which Google removed from the repository, so the default fails
+          # outright. The runner image already ships the SDK with licences accepted, and the
+          # Gradle plugin fetches whatever platform and build-tools this project needs.
+          packages: ''
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
