@@ -41,8 +41,13 @@ android {
                 storePassword = signingValue("storePassword", "SHOPSHOT_STORE_PASSWORD")
                 keyAlias = signingValue("keyAlias", "SHOPSHOT_KEY_ALIAS")
                 keyPassword = signingValue("keyPassword", "SHOPSHOT_KEY_PASSWORD")
-                enableV1Signing = true
+                // v1 (JAR signing) is dead weight at minSdk 30 and AGP skips it anyway.
+                // v3 is the one that matters long term: it carries the proof-of-rotation
+                // record, so the signing key can be rotated later if it is ever compromised.
+                // Setting only v1 and v2 had quietly suppressed it.
+                enableV1Signing = false
                 enableV2Signing = true
+                enableV3Signing = true
             }
         }
     }
