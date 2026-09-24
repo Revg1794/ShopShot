@@ -43,6 +43,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FlashAuto
 import androidx.compose.material.icons.filled.FlashOff
@@ -50,6 +51,7 @@ import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -304,7 +306,8 @@ fun CameraScreen(
                 }
             },
             onFlipLens = vm::toggleLens,
-            onOpenCurrentFolder = { onOpenFolder(state.currentFolder) },
+            onOpenShotFolder = { shot -> onOpenFolder(shot.folder) },
+            onHideSession = vm::clearSession,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
@@ -408,7 +411,8 @@ private fun BottomBar(
     capturing: Boolean,
     onShutter: () -> Unit,
     onFlipLens: () -> Unit,
-    onOpenCurrentFolder: () -> Unit,
+    onOpenShotFolder: (Shot) -> Unit,
+    onHideSession: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -424,20 +428,40 @@ private fun BottomBar(
             exit = fadeOut() + slideOutVertically { it / 2 },
         ) {
             Column {
-                Text(
-                    text = "${state.sessionShots.size} this session  ·  " +
-                        "${state.currentFolderCount} in ${state.currentFolder}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.75f),
-                    modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 6.dp),
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "${state.sessionShots.size} this session  ·  " +
+                            "${state.currentFolderCount} in ${state.currentFolder}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.75f),
+                        modifier = Modifier.weight(1f),
+                    )
+                    // Clears the strip so the preview is unobstructed. The next shot brings
+                    // it back; nothing is deleted.
+                    IconButton(onClick = onHideSession, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = "Hide these thumbnails",
+                            tint = Color.White.copy(alpha = 0.75f),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
                 LazyRow(
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth().height(64.dp),
                 ) {
                     items(state.sessionShots, key = { it.id }) { shot ->
-                        SessionThumb(shot = shot, onClick = onOpenCurrentFolder)
+                        // Opens the folder this photo is actually in. Using the camera's
+                        // current folder here meant that after moving a shot elsewhere, its
+                        // thumbnail still opened the folder it had been taken in.
+                        SessionThumb(shot = shot, onClick = { onOpenShotFolder(shot) })
                     }
                 }
             }

@@ -134,7 +134,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ---------------------------------------------------------------- capture
 
     fun imageValuesForCurrentFolder(folder: String = _state.value.currentFolder): ContentValues =
-        repo.newImageValues(folder, _state.value.shots.count { it.folder == folder })
+        repo.newImageValues(folder, nextIndexFor(folder))
+
+    /** Next free number in [folder], based on the names already there. */
+    private fun nextIndexFor(folder: String): Int = repo.nextIndexFor(
+        folder,
+        _state.value.shots.filter { it.folder == folder }.map { it.displayName },
+    )
 
     fun imageCollection(): Uri = repo.imageCollection()
 
@@ -208,8 +214,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val safe = MediaRepository.sanitizeFolderName(target)
             prefs.rememberFolder(safe)
-            val startIndex = _state.value.shots.count { it.folder == safe }
-            val copied = repo.importInto(sources, safe, startIndex)
+            val copied = repo.importInto(sources, safe, nextIndexFor(safe))
             _events.send(UiEvent.Toast("Added $copied photo${plural(copied)} to $safe"))
             refresh()
         }

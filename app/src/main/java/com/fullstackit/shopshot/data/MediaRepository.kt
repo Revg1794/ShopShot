@@ -86,15 +86,38 @@ class MediaRepository(private val context: Context) {
     // ---------------------------------------------------------------- writing
 
     /** ContentValues for a fresh capture; handed straight to CameraX. */
-    fun newImageValues(folder: String, existingCount: Int): ContentValues {
+    fun newImageValues(folder: String, index: Int): ContentValues {
         val safe = sanitizeFolderName(folder)
-        val index = (existingCount + 1).coerceAtLeast(1)
-        val name = "%s_%03d.jpg".format(Locale.US, safe.replace(' ', '_'), index)
+        val name = "%s_%03d.jpg".format(
+            Locale.US,
+            safe.replace(' ', '_'),
+            index.coerceAtLeast(1),
+        )
         return ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, name)
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
             put(MediaStore.Images.Media.RELATIVE_PATH, relativePathFor(safe))
         }
+    }
+
+    /**
+     * The next free number for [folder], read from the highest number already used there
+     * rather than from how many photos it holds.
+     *
+     * Counting was wrong as soon as a photo left the folder: moving one out dropped the count,
+     * the next shot reused a number, and MediaStore quietly saved it as "Name_004 (1).jpg",
+     * which then sorts away from its siblings when uploading a listing.
+     *
+     * Names that do not belong to this folder's own series are ignored, so a photo moved in
+     * from elsewhere keeps its name without disturbing the numbering here.
+     */
+    fun nextIndexFor(folder: String, existingNames: List<String>): Int {
+        val prefix = sanitizeFolderName(folder).replace(' ', '_')
+        val pattern = Regex("^${Regex.escape(prefix)}_(\\d+)\\.jpg$", RegexOption.IGNORE_CASE)
+        val highest = existingNames.mapNotNull { name ->
+            pattern.find(name)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        }.maxOrNull() ?: 0
+        return highest + 1
     }
 
     fun imageCollection(): Uri = collection
@@ -155,12 +178,12 @@ class MediaRepository(private val context: Context) {
     }
 
     /** Copies photos picked from anywhere on the device into [target]. */
-    suspend fun importInto(sources: List<Uri>, target: String, startIndex: Int): Int =
+    suspend fun importInto(sources: List<Uri>, target: String, firstIndex: Int): Int =
         withContext(Dispatchers.IO) {
             val safe = sanitizeFolderName(target)
             var copied = 0
             sources.forEachIndexed { i, source ->
-                val values = newImageValues(safe, startIndex + i)
+                val values = newImageValues(safe, firstIndex + i)
                 val dest = runCatching { resolver.insert(collection, values) }.getOrNull()
                     ?: return@forEachIndexed
                 val ok = runCatching {

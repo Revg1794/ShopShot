@@ -30,8 +30,8 @@ android {
         applicationId = "com.fullstackit.shopshot"
         minSdk = 30
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     signingConfigs {
