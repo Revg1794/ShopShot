@@ -31,6 +31,14 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_FRONT, false)
         set(value) = sp.edit().putBoolean(KEY_FRONT, value).apply()
 
+    /**
+     * Where the imported watermark lives. The photo picker only grants temporary access to the
+     * image she chose, so it is copied into the app's own storage and remembered by path.
+     */
+    var watermarkPath: String?
+        get() = sp.getString(KEY_WATERMARK, null)
+        set(value) = sp.edit().putString(KEY_WATERMARK, value).apply()
+
     fun rememberFolder(name: String) {
         knownFolders = knownFolders + name
     }
@@ -46,5 +54,6 @@ class Prefs(context: Context) {
         private const val KEY_ASK = "ask_every_shot"
         private const val KEY_FLASH = "flash_mode"
         private const val KEY_FRONT = "use_front_camera"
+        private const val KEY_WATERMARK = "watermark_path"
     }
 }

@@ -87,6 +87,10 @@ shape (original, 1:1, 4:5 or 3:4 — square suits most marketplace listings), an
 quarter turns. Saving asks whether to replace the original or keep both; replacing sends the
 original to Recently Deleted, so a bad crop is recoverable for 30 days.
 
+**Add a label or your logo.** In the editor, switch to Text to put a label on a photo — size,
+condition, price — or to Logo to stamp your own watermark on it. Drag either where you want it;
+the logo you pick is kept, so you choose it once and reuse it on every listing.
+
 **Rename a folder** and the photos move with it.
 
 **Delete a folder** from the ⋮ menu inside it. If it still has photos, they go to your phone's

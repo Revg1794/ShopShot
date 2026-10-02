@@ -10,6 +10,8 @@ import androidx.lifecycle.viewModelScope
 import com.fullstackit.shopshot.data.CropFraming
 import com.fullstackit.shopshot.data.ImageEditor
 import com.fullstackit.shopshot.data.MediaRepository
+import com.fullstackit.shopshot.data.Overlay
+import com.fullstackit.shopshot.data.OverlayRenderer
 import com.fullstackit.shopshot.data.MediaResult
 import com.fullstackit.shopshot.data.Prefs
 import com.fullstackit.shopshot.data.ShopFolder
@@ -56,6 +58,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = MediaRepository(app)
     private val imageEditor = ImageEditor(app)
+    private val overlayRenderer = OverlayRenderer(app)
     private val prefs = Prefs(app)
 
     private val _state = MutableStateFlow(
@@ -170,7 +173,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      * The export happens first on purpose: if it fails, the original is still sitting
      * untouched in the folder rather than already in the bin with nothing to show for it.
      */
-    fun saveEdit(source: Shot, framing: CropFraming, replaceOriginal: Boolean) {
+    fun saveEdit(
+        source: Shot,
+        framing: CropFraming,
+        overlays: List<Overlay>,
+        replaceOriginal: Boolean,
+    ) {
         viewModelScope.launch {
             val folder = source.folder
             val name = repo.newImageValues(folder, nextIndexFor(folder))
@@ -182,6 +190,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 framing = framing,
                 targetFolder = folder,
                 displayName = name,
+                drawOverlays = if (overlays.isEmpty()) null else { canvas, w, h ->
+                    overlayRenderer.draw(canvas, w, h, overlays)
+                },
             )
             if (saved == null) {
                 _events.send(UiEvent.Toast("Could not save the edited photo"))

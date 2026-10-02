@@ -205,6 +205,22 @@ class ImageEditor(private val context: Context) {
         }.getOrDefault(bitmap)
     }
 
+    /**
+     * Copies a chosen logo into app storage and returns a uri that keeps working.
+     *
+     * The photo picker hands back a uri the app may read now and not after a restart, so
+     * storing that uri would give her a watermark that silently stopped appearing.
+     */
+    suspend fun importWatermark(source: Uri): Uri? = withContext(Dispatchers.IO) {
+        val bitmap = loadForDisplay(source, maxEdge = 1024) ?: return@withContext null
+        val file = java.io.File(context.filesDir, "watermark.png")
+        val ok = runCatching {
+            file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }.isSuccess
+        bitmap.recycle()
+        if (ok) Uri.fromFile(file) else null
+    }
+
     private fun sampleSizeFor(width: Int, height: Int, maxEdge: Int): Int {
         var sample = 1
         while (min(width, height) / sample > maxEdge || max(width, height) / sample > maxEdge * 2) {

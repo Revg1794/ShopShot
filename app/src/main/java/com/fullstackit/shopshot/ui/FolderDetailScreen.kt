@@ -70,6 +70,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.fullstackit.shopshot.data.CropFraming
+import com.fullstackit.shopshot.data.Overlay
 import com.fullstackit.shopshot.data.Shot
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -92,7 +93,7 @@ fun FolderDetailScreen(
     var confirmingDelete by remember { mutableStateOf(false) }
     var viewing by remember { mutableStateOf<Shot?>(null) }
     var editing by remember { mutableStateOf<Shot?>(null) }
-    var pendingEdit by remember { mutableStateOf<CropFraming?>(null) }
+    var pendingEdit by remember { mutableStateOf<Pair<CropFraming, List<Overlay>>?>(null) }
 
     val selecting = selected.isNotEmpty()
     val selectedShots = remember(selected, shots) { shots.filter { it.id in selected } }
@@ -129,19 +130,19 @@ fun FolderDetailScreen(
         PhotoEditorScreen(
             shot = editingShot,
             onCancel = { editing = null },
-            onSave = { framing -> pendingEdit = framing },
+            onSave = { framing, overlays -> pendingEdit = framing to overlays },
         )
-        val framing = pendingEdit
-        if (framing != null) {
+        val edit = pendingEdit
+        if (edit != null) {
             SaveEditDialog(
                 onDismiss = { pendingEdit = null },
                 onKeepBoth = {
-                    vm.saveEdit(editingShot, framing, replaceOriginal = false)
+                    vm.saveEdit(editingShot, edit.first, edit.second, replaceOriginal = false)
                     pendingEdit = null
                     editing = null
                 },
                 onReplace = {
-                    vm.saveEdit(editingShot, framing, replaceOriginal = true)
+                    vm.saveEdit(editingShot, edit.first, edit.second, replaceOriginal = true)
                     pendingEdit = null
                     editing = null
                 },
