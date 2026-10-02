@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.MoreVert
@@ -68,6 +69,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.fullstackit.shopshot.data.CropFraming
 import com.fullstackit.shopshot.data.Shot
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -89,6 +91,8 @@ fun FolderDetailScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var confirmingDelete by remember { mutableStateOf(false) }
     var viewing by remember { mutableStateOf<Shot?>(null) }
+    var editing by remember { mutableStateOf<Shot?>(null) }
+    var pendingEdit by remember { mutableStateOf<CropFraming?>(null) }
 
     val selecting = selected.isNotEmpty()
     val selectedShots = remember(selected, shots) { shots.filter { it.id in selected } }
@@ -120,6 +124,32 @@ fun FolderDetailScreen(
     // does not reliably receive navigation bar insets, so every inset modifier inside one
     // measured as zero and the action row stayed pinned under the navigation bar. In the
     // activity's own window, which is already edge to edge, the insets are correct.
+    val editingShot = editing
+    if (editingShot != null) {
+        PhotoEditorScreen(
+            shot = editingShot,
+            onCancel = { editing = null },
+            onSave = { framing -> pendingEdit = framing },
+        )
+        val framing = pendingEdit
+        if (framing != null) {
+            SaveEditDialog(
+                onDismiss = { pendingEdit = null },
+                onKeepBoth = {
+                    vm.saveEdit(editingShot, framing, replaceOriginal = false)
+                    pendingEdit = null
+                    editing = null
+                },
+                onReplace = {
+                    vm.saveEdit(editingShot, framing, replaceOriginal = true)
+                    pendingEdit = null
+                    editing = null
+                },
+            )
+        }
+        return
+    }
+
     val viewingShot = viewing
     if (viewingShot != null) {
         PhotoViewerScreen(
@@ -130,6 +160,10 @@ fun FolderDetailScreen(
                 viewing = null
                 selected = setOf(viewingShot.id)
                 movePickerOpen = true
+            },
+            onEdit = {
+                viewing = null
+                editing = viewingShot
             },
             onTrash = {
                 viewing = null
@@ -415,6 +449,31 @@ private fun DeleteFolderDialog(
 }
 
 @Composable
+private fun SaveEditDialog(
+    onDismiss: () -> Unit,
+    onKeepBoth: () -> Unit,
+    onReplace: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Save edited photo") },
+        text = {
+            Text(
+                "Replacing sends the original to Recently Deleted, where you can get it back " +
+                    "for 30 days. Keeping both leaves two photos in this folder."
+            )
+        },
+        confirmButton = {
+            Row {
+                TextButton(onClick = onKeepBoth) { Text("Keep both") }
+                TextButton(onClick = onReplace) { Text("Replace") }
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
 private fun RenameDialog(current: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var text by remember { mutableStateOf(current) }
     AlertDialog(
@@ -452,6 +511,7 @@ private fun PhotoViewerScreen(
     onDismiss: () -> Unit,
     onShare: () -> Unit,
     onMove: () -> Unit,
+    onEdit: () -> Unit,
     onTrash: () -> Unit,
 ) {
     BackHandler(onBack = onDismiss)
@@ -494,6 +554,7 @@ private fun PhotoViewerScreen(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            ViewerAction(Modifier.weight(1f), Icons.Filled.Crop, "Edit", onEdit)
             ViewerAction(Modifier.weight(1f), Icons.Filled.Share, "Share", onShare)
             ViewerAction(
                 Modifier.weight(1f),

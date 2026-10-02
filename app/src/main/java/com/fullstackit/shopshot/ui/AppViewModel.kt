@@ -7,6 +7,8 @@ import android.net.Uri
 import androidx.camera.core.ImageCapture
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.fullstackit.shopshot.data.CropFraming
+import com.fullstackit.shopshot.data.ImageEditor
 import com.fullstackit.shopshot.data.MediaRepository
 import com.fullstackit.shopshot.data.MediaResult
 import com.fullstackit.shopshot.data.Prefs
@@ -53,6 +55,7 @@ private sealed interface Pending {
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = MediaRepository(app)
+    private val imageEditor = ImageEditor(app)
     private val prefs = Prefs(app)
 
     private val _state = MutableStateFlow(
@@ -157,6 +160,46 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 sessionShots = listOfNotNull(fresh) +
                     _state.value.sessionShots.filter { it.id != fresh?.id },
             )
+        }
+    }
+
+    /**
+     * Writes the edited photo as a new file in the same folder, then optionally sends the
+     * original to the trash.
+     *
+     * The export happens first on purpose: if it fails, the original is still sitting
+     * untouched in the folder rather than already in the bin with nothing to show for it.
+     */
+    fun saveEdit(source: Shot, framing: CropFraming, replaceOriginal: Boolean) {
+        viewModelScope.launch {
+            val folder = source.folder
+            val name = repo.newImageValues(folder, nextIndexFor(folder))
+                .getAsString(android.provider.MediaStore.Images.Media.DISPLAY_NAME)
+                ?: "${folder}_edit.jpg"
+
+            val saved = imageEditor.exportCrop(
+                source = source.uri,
+                framing = framing,
+                targetFolder = folder,
+                displayName = name,
+            )
+            if (saved == null) {
+                _events.send(UiEvent.Toast("Could not save the edited photo"))
+                return@launch
+            }
+            if (replaceOriginal) {
+                // Goes to the system trash, so a bad crop is recoverable for 30 days.
+                when (val result = repo.trash(listOf(source.uri))) {
+                    is MediaResult.NeedsConsent -> {
+                        pending = Pending.Trash()
+                        _events.send(UiEvent.Consent(result.intentSender))
+                    }
+                    is MediaResult.Done -> refresh()
+                }
+            } else {
+                _events.send(UiEvent.Toast("Saved as $name"))
+                refresh()
+            }
         }
     }
 

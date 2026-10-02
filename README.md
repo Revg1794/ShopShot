@@ -82,6 +82,11 @@ count.
 **Fix mistakes in bulk.** Open a folder and long-press any photo to start selecting. Then move
 the whole selection to another folder, share them, or remove them.
 
+**Crop and straighten.** Open a photo and tap Edit. Pinch or drag to frame the shot, pick a
+shape (original, 1:1, 4:5 or 3:4 — square suits most marketplace listings), and rotate in
+quarter turns. Saving asks whether to replace the original or keep both; replacing sends the
+original to Recently Deleted, so a bad crop is recoverable for 30 days.
+
 **Rename a folder** and the photos move with it.
 
 **Delete a folder** from the ⋮ menu inside it. If it still has photos, they go to your phone's

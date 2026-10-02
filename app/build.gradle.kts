@@ -30,8 +30,8 @@ android {
         applicationId = "com.fullstackit.shopshot"
         minSdk = 30
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.3"
     }
 
     signingConfigs {
@@ -106,6 +106,9 @@ dependencies {
     implementation("androidx.camera:camera-view:$cameraX")
 
     implementation("io.coil-kt:coil-compose:2.7.0")
+    // Phone cameras record orientation in EXIF rather than rotating pixels; the editor has
+    // to honour that or it shows a sideways photo.
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
